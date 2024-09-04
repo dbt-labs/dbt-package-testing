@@ -1,23 +1,10 @@
-** replace `dbt-oss-template` with your repository name in all docs
+## Understanding dbt-package-testing
 
-## Understanding dbt-oss-template
-
-A short description of the purpose of this repository.  Include relevant images.
-
-## Getting started
-
-- [Install dbt](https://docs.getdbt.com/docs/get-started/installation)
-- Read the [introduction](https://docs.getdbt.com/docs/introduction/) and [viewpoint](https://docs.getdbt.com/docs/about/viewpoint/)
-
-## Join the dbt Community
-
-- Be part of the conversation in the [dbt Community Slack](http://community.getdbt.com/)
-- Read more on the [dbt Community Discourse](https://discourse.getdbt.com)
+This is an example of how to test packages.
 
 ## Reporting bugs and contributing code
 
-- Want to report a bug or request a feature? Let us know on [Slack](http://community.getdbt.com/), or open [an issue](https://github.com/dbt-labs/dbt-oss-template/issues/new)
-- Want to help us build dbt? Check out the [Contributing Guide](https://github.com/dbt-labs/dbt-oss-template/blob/HEAD/CONTRIBUTING.md)
+- Want to report a bug or request a feature? Let us know by opening [an issue](https://github.com/dbt-labs/dbt-package-testing/issues/new)
 
 ## Code of Conduct
 
