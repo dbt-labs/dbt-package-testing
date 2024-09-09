@@ -1,8 +1,8 @@
 # **what?**
-# Run tests for package-testing against supported adapters
+# Run tests for <this package> against supported adapters
 
 # **why?**
-# To ensure that dbt-package-testing works as expected with all supported adapters
+# To ensure that <this package> works as expected with all supported adapters
 
 # **when?**
 # On every PR, and every push to main and when manually triggered
@@ -10,135 +10,86 @@
 name: Package Integration Tests
 
 on:
-    # This repo does not have secrets set up so these triggers are disabled to prevent many failing tests on all PRs
-    # Packages would want to trigger these tests for pushes to main and pull_requests to ensure nothing breaks
-    # with any changes to the package
-    # push:
-    #     branches:
-    #         - main
-    # pull_request:
+    push:
+        branches:
+            - main
+    pull_request:
     workflow_dispatch:
-        inputs:
-            adapter:
-                description: The adapter to test against.  Defaults to all supported adapters when blank.
-                type: string
-                required: false
-
-env:
-    PYTHON_VERSION: "3.11"
 
 jobs:
-    determine-supported-adapters:
-        runs-on: ubuntu-latest
-        outputs:
-            adapters: ${{ steps.supported-adapters.outputs.adapters }}
-        steps:
-            - name: "Checkout ${{ github.event.repository }}"
-              uses: actions/checkout@v4
-
-            - name: "Set up Python ${{ env.PYTHON_VERSION }}"
-              uses: actions/setup-python@v5
-              with:
-                  python-version: ${{ env.PYTHON_VERSION }}
-
-            - name: "Install tox"
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install tox
-
-            - name: "Get list of supported adapters or use input adapter only"
-              id: list-adapters
-              run: |
-                  if [ -z "${{ inputs.adapter }}" ]; then
-                      # github adds a pip freeze and a new line we need to strip out
-                      source supported_adapters.env
-                      echo $SUPPORTED_ADAPTERS
-                      echo "test_adapters=$SUPPORTED_ADAPTERS" >> $GITHUB_OUTPUT
-                  else
-                      echo "test_adapters=${{ inputs.adapter }}" >> $GITHUB_OUTPUT
-                  fi
-
-            - name: "Format adapter list for use as the matrix"
-              id: supported-adapters
-              run: |
-                  # Convert to JSON array and output
-                  supported_adapters=$(echo "${{ steps.list-adapters.outputs.test_adapters }}" | jq -Rc 'split(",")')
-                  echo $supported_adapters
-                  echo "adapters=$supported_adapters" >> $GITHUB_OUTPUT
-
-            - name: "[ANNOTATION] ${{ github.event.repository.name }} - Testing ${{ steps.supported-adapters.outputs.adapters }}"
-              run: |
-                  title="${{ github.event.repository.name }} - adapters to test"
-                  message="The workflow will run tests for the following adapters: ${{ steps.supported-adapters.outputs.adapters }}"
-                  echo "::notice $title::$message"
-
-    run-tests:
-        runs-on: ubuntu-latest
-        needs: [determine-supported-adapters]
-        # you can install postgres as an additional service in the github container
-        services:
-            postgres:
-                image: postgres
-                env:
-                    POSTGRES_USER: ${{ vars.POSTGRES_USER }}
-                    POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASS }}
-                    POSTGRES_DB: ${{ vars.POSTGRES_DATABASE }}
-                    POSTGRES_HOST: ${{ vars.POSTGRES_HOST }}
-                options: >-
-                    --health-cmd pg_isready
-                    --health-interval 10s
-                    --health-timeout 5s
-                    --health-retries 5
-                ports:
-                    - 5432:5432
-        strategy:
-            fail-fast: false
-            matrix:
-                adapter: ${{fromJson(needs.determine-supported-adapters.outputs.adapters)}}
-
-        steps:
-            - name: "Checkout ${{ github.event.repository }} "
-              uses: actions/checkout@v4
-
-            - name: "Set up Python ${{ env.PYTHON_VERSION }}"
-              uses: actions/setup-python@v5
-              with:
-                  python-version: ${{ env.PYTHON_VERSION }}
-
-            - name: "Install ${{ matrix.adapter }}"
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install dbt-${{ matrix.adapter }}
-
-            - name: "Install tox"
-              run: |
-                  python -m pip install --upgrade pip
-                  pip install tox
-
-            - name: "Run integration tests with tox on ${{ matrix.adapter }}"
-              run: |
-                  tox -e dbt_integration_${{ matrix.adapter }}
-              env:
-                  POSTGRES_HOST: ${{ vars.POSTGRES_HOST }}
-                  POSTGRES_USER: ${{ vars.POSTGRES_USER }}
-                  DBT_ENV_SECRET_POSTGRES_PASS: ${{ secrets.POSTGRES_PASS }}
-                  POSTGRES_PORT: 5432
-                  POSTGRES_DATABASE: ${{ vars.POSTGRES_DATABASE }}
-                  POSTGRES_SCHEMA: "dbt_utils_integration_tests_postgres_${{ github.run_number }}"
-                  SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-                  SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_USER }}
-                  DBT_ENV_SECRET_SNOWFLAKE_PASS: ${{ secrets.SNOWFLAKE_PASS }}
-                  SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
-                  SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
-                  SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
-                  SNOWFLAKE_SCHEMA: "dbt_utils_integration_tests_snowflake_${{ github.run_number }}"
-                  REDSHIFT_HOST: ${{ vars.REDSHIFT_HOST }}
-                  REDSHIFT_USER: ${{ vars.REDSHIFT_USER }}
-                  DBT_ENV_SECRET_REDSHIFT_PASS: ${{ secrets.REDSHIFT_PASS }}
-                  REDSHIFT_DATABASE: ${{ vars.REDSHIFT_DATABASE }}
-                  REDSHIFT_SCHEMA: "dbt_utils_integration_tests_redshift_${{ github.run_number }}"
-                  REDSHIFT_PORT: 5439
-                  BIGQUERY_PROJECT: ${{ vars.BIGQUERY_PROJECT }}
-                  BIGQUERY_KEYFILE_JSON: ${{ secrets.BIGQUERY_KEYFILE_JSON }}
-                  BIGQUERY_SCHEMA: "dbt_utils_integration_tests_bigquery_${{ github.run_number }}"
-                  # plus any other env vars needed for your supported adapter
+  run-tests:
+      uses: dbt-labs/dbt-package-testing/.github/workflows/run_tox.yml@main
+      # Note: only include the inputs below for the adapters you are testing against.
+      # All inputs are optional and postgres has default values.
+      with:
+        # Postgres is defaulted since it runs right in the container.
+        # No need to pass postgres vars in.
+        # redshift
+        REDSHIFT_HOST: ${{ vars.REDSHIFT_HOST }}
+        REDSHIFT_USER: ${{ vars.REDSHIFT_USER }}
+        REDSHIFT_DATABASE: ${{ vars.REDSHIFT_DATABASE }}
+        REDSHIFT_SCHEMA: "integration_tests_redshift_${{ github.run_number }}"
+        REDSHIFT_PORT: ${{ vars.REDSHIFT_PORT }}
+        # bigquery
+        BIGQUERY_PROJECT: ${{ vars.BIGQUERY_PROJECT }}
+        BIGQUERY_SCHEMA: "integration_tests_bigquery_${{ github.run_number }}"
+         # snowflake
+        SNOWFLAKE_USER: ${{ vars.SNOWFLAKE_USER }}
+        SNOWFLAKE_ROLE: ${{ vars.SNOWFLAKE_ROLE }}
+        SNOWFLAKE_DATABASE: ${{ vars.SNOWFLAKE_DATABASE }}
+        SNOWFLAKE_WAREHOUSE: ${{ vars.SNOWFLAKE_WAREHOUSE }}
+        SNOWFLAKE_SCHEMA: "integration_tests_snowflake_${{ github.run_number }}"
+        # trino
+        TRINO_METHOD: ${{ vars.TRINO_METHOD }}
+        TRINO_USER: ${{ vars.TRINO_USER }}
+        TRINO_HOST: ${{ vars.TRINO_HOST }}
+        TRINO_PORT: ${{ vars.TRINO_PORT }}
+        TRINO_CATALOG: ${{ vars.TRINO_CATALOG }}
+        TRINO_SCHEMA: "integration_tests_trino_${{ github.run_number }}"
+        TRINO_TIMEZONE: ${{ vars.TRINO_TIMEZONE }}
+        # databricks
+        DATABRICKS_SCHEMA: "integration_tests_databricks_${{ github.run_number }}"
+        DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
+        DATABRICKS_HTTP_PATH: ${{ vars.DATABRICKS_HTTP_PATH }}
+        # spark
+        SPARK_HOST: ${{ vars.SPARK_HOST }}
+        SPARK_SCHEMA: "integration_tests_spark_${{ github.run_number }}"
+        SPARK_USER: ${{ vars.SPARK_USER }}
+        SPARK_METHOD: ${{ vars.SPARK_METHOD }}
+        SPARK_PORT: ${{ vars.SPARK_PORT }}
+        # fabric
+        FABRIC_DRIVER: ${{ vars.FABRIC_DRIVER }}
+        FABRIC_HOST: ${{ vars.FABRIC_HOST }}
+        FABRIC_PORT: ${{ vars.FABRIC_PORT }}
+        FABRIC_DATABASE: ${{ vars.FABRIC_DATABASE }}
+        FABRIC_SCHEMA: "integration_tests_fabric_${{ github.run_number }}"
+        FABRIC_AUTHENTICATION: ${{ vars.FABRIC_AUTHENTICATION }}
+        FABRIC_TENANT: ${{ vars.FABRIC_TENANT }}
+        FABRIC_CLIENT: ${{ vars.FABRIC_CLIENT }}
+        # synapse
+        SYNAPSE_DRIVER: ${{ vars.SYNAPSE_DRIVER }}
+        SYNAPSE_HOST: ${{ vars.SYNAPSE_HOST }}
+        SYNAPSE_PORT: ${{ vars.SYNAPSE_PORT }}
+        SYNAPSE_DATABASE: ${{ vars.SYNAPSE_DATABASE }}
+        SYNAPSE_SCHEMA: "integration_tests_synapse_${{ github.run_number }}"
+        SYNAPSE_AUTHENTICATION: ${{ vars.SYNAPSE_AUTHENTICATION }}
+        SYNAPSE_TENANT_ID: ${{ vars.SYNAPSE_TENANT_ID }}
+        SYNAPSE_CLIENT_ID: ${{ vars.SYNAPSE_CLIENT_ID }}
+        # athena
+        ATHENA_S3_STAGING_DIR: ${{ vars.ATHENA_S3_STAGING_DIR }}
+        ATHENA_S3_DATA_DIR: ${{ vars.ATHENA_S3_DATA_DIR }}
+        ATHENA_S3_DATA_NAMING: ${{ vars.ATHENA_S3_DATA_NAMING }}
+        ATHENA_REGION_NAME: ${{ vars.ATHENA_REGION_NAME }}
+        ATHENA_SCHEMA: "integration_tests_athena_${{ github.run_number }}"
+        ATHENA_DATABASE: ${{ vars.ATHENA_DATABASE }}
+      secrets:
+        DBT_ENV_SECRET_REDSHIFT_PASS: ${{ secrets.DBT_ENV_SECRET_REDSHIFT_PASS }}
+        BIGQUERY_KEYFILE_JSON: ${{ secrets.BIGQUERY_KEYFILE_JSON }}
+        SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+        DBT_ENV_SECRET_SNOWFLAKE_PASS: ${{ secrets.DBT_ENV_SECRET_SNOWFLAKE_PASS }}
+        DBT_ENV_SECRET_TRINO_PASS: ${{ secrets.DBT_ENV_SECRET_TRINO_PASS }}
+        DBT_SECRET_ENV_DATABRICKS_TOKEN: ${{ secrets.DBT_SECRET_ENV_DATABRICKS_TOKEN }}
+        DBT_ENV_SECRET_FABRIC_CLIENT_SECRET: ${{ secrets.DBT_ENV_SECRET_FABRIC_CLIENT_SECRET }}
+        DBT_ENV_SECRET_SYNAPSE_CLIENT_SECRET: ${{ secrets.DBT_ENV_SECRET_SYNAPSE_CLIENT_SECRET }}
+        DBT_ENV_SECRET_ATHENA_AWS_ACCESS_KEY_ID: ${{ secrets.DBT_ENV_SECRET_ATHENA_AWS_ACCESS_KEY_ID }}
+        DBT_ENV_SECRET_ATHENA_AWS_SECRET_ACCESS_KEY: ${{ secrets.DBT_ENV_SECRET_ATHENA_AWS_SECRET_ACCESS_KEY }}
