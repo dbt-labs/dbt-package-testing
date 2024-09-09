@@ -19,6 +19,8 @@ on:
 jobs:
   run-tests:
       uses: dbt-labs/dbt-package-testing/.github/workflows/run_tox.yml@main
+      # Note: only include the inputs below for the adapters you are testing against.
+      # All inputs are optional and postgres has default values.
       with:
         # Postgres is defaulted since it runs right in the container.
         # No need to pass postgres vars in.
@@ -80,7 +82,6 @@ jobs:
         ATHENA_REGION_NAME: ${{ vars.ATHENA_REGION_NAME }}
         ATHENA_SCHEMA: "integration_tests_athena_${{ github.run_number }}"
         ATHENA_DATABASE: ${{ vars.ATHENA_DATABASE }}
-        # plus any other env vars needed for your supported adapter
       secrets:
         DBT_ENV_SECRET_REDSHIFT_PASS: ${{ secrets.DBT_ENV_SECRET_REDSHIFT_PASS }}
         BIGQUERY_KEYFILE_JSON: ${{ secrets.BIGQUERY_KEYFILE_JSON }}
