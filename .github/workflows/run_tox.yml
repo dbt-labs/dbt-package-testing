@@ -218,7 +218,7 @@ on:
             DBT_ENV_SECRET_TRINO_PASS:
                 required: false
             # databricks
-            DBT_SECRET_ENV_DATABRICKS_TOKEN:
+            DBT_ENV_SECRET_DATABRICKS_TOKEN:
                 required: false
             # spark - None
             # fabric
