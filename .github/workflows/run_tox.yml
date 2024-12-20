@@ -309,7 +309,8 @@ jobs:
               with:
                   python-version: ${{ env.PYTHON_VERSION }}
 
-            - name: "Install Microsoft ODBC Driver"
+            - name: "Install Microsoft ODBC Driver for Fabric and Synapse"
+              if: ${{ matrix.adapter == 'synapse' || matrix.adapter == 'fabric' }}
               run: |
                   # source: https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server
                   if ! [[ "18.04 20.04 22.04 23.04 24.04" == *"$(lsb_release -rs)"* ]];
