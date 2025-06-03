@@ -1,0 +1,242 @@
+# **what?**
+# Run tests for packages against supported adapters using the fustion engine
+#
+# **why?**
+# To ensure that packages works as expected with all supported adapters on the fusion engine
+
+# **when?**
+# On workflow call
+# This is a workflow meant to be called by many different packages to run integration tests.
+# Any changes should be backwards compatible with all packages that call this workflow.
+
+
+name: Package Integration Tests
+
+on:
+    workflow_call:
+        inputs:
+            # postgres
+            # postgres vars are all defaulted so that they are not required to be passed
+            # in since the postgres tests will run inside the container with a local instance
+            # of postgres.
+            POSTGRES_SCHEMA:
+                required: false
+                type: string
+                default: "integration_tests_postgres_${{ github.run_number }}"
+            POSTGRES_HOST:
+                required: false
+                type: string
+                default: "localhost"
+            POSTGRES_USER:
+                required: false
+                type: string
+                default: "root"
+            POSTGRES_PORT:
+                required: false
+                type: string
+                default: "5432"
+            POSTGRES_DATABASE:
+                required: false
+                type: string
+                default: "postgres_test"
+            # since this is for the db running inside the container this is not actually a secret
+            # and does not need to treated as such in the workflow.
+            DBT_ENV_SECRET_POSTGRES_PASS:
+                description: "The password that isn't actually secret"
+                type: string
+                default: "postgres_test"
+            # redshift
+            REDSHIFT_HOST:
+                required: false
+                type: string
+            REDSHIFT_USER:
+                required: false
+                type: string
+            REDSHIFT_DATABASE:
+                required: false
+                type: string
+            REDSHIFT_SCHEMA:
+                required: false
+                type: string
+            REDSHIFT_PORT:
+                required: false
+                type: string
+            # bigquery
+            BIGQUERY_PROJECT:
+                required: false
+                type: string
+            BIGQUERY_SCHEMA:
+                required: false
+                type: string
+            # snowflake
+            SNOWFLAKE_USER:
+                required: false
+                type: string
+            SNOWFLAKE_ROLE:
+                required: false
+                type: string
+            SNOWFLAKE_DATABASE:
+                required: false
+                type: string
+            SNOWFLAKE_WAREHOUSE:
+                required: false
+                type: string
+            SNOWFLAKE_SCHEMA:
+                required: false
+                type: string
+            # databricks
+            DATABRICKS_SCHEMA:
+                required: false
+                type: string
+            DATABRICKS_HOST:
+                required: false
+                type: string
+            DATABRICKS_HTTP_PATH:
+                required: false
+                type: string
+        secrets:
+            # postgres - None
+            # redshift
+            DBT_ENV_SECRET_REDSHIFT_PASS:
+            # bigquery
+            # This can't be prefaced by `DBT_ENV_SECRET` because it causes issues with GitHub
+            BIGQUERY_KEYFILE_JSON:
+                required: false
+            # snowflake
+            SNOWFLAKE_ACCOUNT:
+                required: false
+            DBT_ENV_SECRET_SNOWFLAKE_PASS:
+                required: false
+            # databricks
+            DBT_ENV_SECRET_DATABRICKS_TOKEN:
+                required: false
+
+env:
+    PYTHON_VERSION: "3.11"
+
+jobs:
+    determine-supported-adapters:
+        runs-on: ubuntu-latest
+        outputs:
+            adapters: ${{ steps.supported-adapters.outputs.adapters }}
+        steps:
+            - name: "Checkout ${{ github.event.repository }}"
+              uses: actions/checkout@v4
+              with:
+                repository: dbt-labs/dbt-utils
+
+            - name: "Set up Python ${{ env.PYTHON_VERSION }}"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ env.PYTHON_VERSION }}
+
+            - name: "Install tox"
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install tox
+
+            - name: "Get list of supported adapters"
+              id: list-adapters
+              run: |
+                # github adds a pip freeze and a new line we need to strip out
+                source supported_adapters.env
+                echo $SUPPORTED_ADAPTERS
+                echo "test_adapters=$SUPPORTED_ADAPTERS" >> $GITHUB_OUTPUT
+
+            - name: "Format adapter list for use as the matrix"
+              id: supported-adapters
+              run: |
+                  # Convert to JSON array and output
+                  supported_adapters=$(echo "${{ steps.list-adapters.outputs.test_adapters }}" | jq -Rc 'split(",")')
+                  # Define the list of fs-supported adapters
+                  # TODO: add more adapters here
+                  fs_supported_adapters='["snowflake"]'
+                  # Filter supported_adapters to only include those in fs_supported_adapters
+                  filtered_adapters=$(echo "$supported_adapters" | jq --argjson fs "$fs_supported_adapters" 'map(select(. as $a | $fs | index($a)))')
+                  echo "$filtered_adapters"
+                  echo "adapters=$(echo $filtered_adapters | jq -c .)" >> $GITHUB_OUTPUT
+
+            - name: "[ANNOTATION] ${{ github.event.repository.name }} - Testing ${{ steps.supported-adapters.outputs.adapters }}"
+              run: |
+                  title="${{ github.event.repository.name }} - adapters to test"
+                  message="The workflow will run tests for the following adapters: ${{ steps.supported-adapters.outputs.adapters }}"
+                  echo "::notice $title::$message"
+
+    run-tests:
+        runs-on: ubuntu-latest
+        needs: [determine-supported-adapters]
+        services:
+            postgres:
+                image: postgres
+                env:
+                    POSTGRES_USER: ${{ inputs.POSTGRES_USER }}
+                    POSTGRES_PASSWORD: ${{ inputs.DBT_ENV_SECRET_POSTGRES_PASS }}
+                    POSTGRES_DB: ${{ inputs.POSTGRES_DATABASE }}
+                    POSTGRES_HOST: ${{ inputs.POSTGRES_HOST }}
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+                ports:
+                    - 5432:5432
+        strategy:
+            fail-fast: false
+            matrix:
+                adapter: ${{fromJson(needs.determine-supported-adapters.outputs.adapters)}}
+
+        steps:
+            - name: "Install fs"
+              run: |
+                curl -fsSL https://public.cdn.getdbt.com/fs/install/install.sh | sh -s -- --update
+
+            - name: "Checkout ${{ github.event.repository }} "
+              uses: actions/checkout@v4
+              with:
+                repository: dbt-labs/dbt-utils
+
+            - name: "Set up Python ${{ env.PYTHON_VERSION }}"
+              uses: actions/setup-python@v5
+              with:
+                  python-version: ${{ env.PYTHON_VERSION }}
+
+            - name: "Install tox"
+              run: |
+                  python -m pip install --upgrade pip
+                  pip install tox
+
+            - name: "Run integration tests with tox on ${{ matrix.adapter }}"
+              run: |
+                  tox -e dbt_integration_${{ matrix.adapter }}
+              env:
+                # postgres
+                POSTGRES_HOST: ${{ inputs.POSTGRES_HOST }}
+                POSTGRES_USER: ${{ inputs.POSTGRES_USER }}
+                DBT_ENV_SECRET_POSTGRES_PASS: ${{ inputs.DBT_ENV_SECRET_POSTGRES_PASS }}
+                POSTGRES_PORT: ${{ inputs.POSTGRES_PORT }}
+                POSTGRES_DATABASE: ${{ inputs.POSTGRES_DATABASE }}
+                POSTGRES_SCHEMA: ${{ inputs.POSTGRES_SCHEMA }}
+                # redshift
+                REDSHIFT_HOST: ${{ inputs.REDSHIFT_HOST }}
+                REDSHIFT_USER: ${{ inputs.REDSHIFT_USER }}
+                DBT_ENV_SECRET_REDSHIFT_PASS: ${{ secrets.DBT_ENV_SECRET_REDSHIFT_PASS }}
+                REDSHIFT_DATABASE: ${{ inputs.REDSHIFT_DATABASE }}
+                REDSHIFT_SCHEMA: ${{ inputs.REDSHIFT_SCHEMA }}
+                REDSHIFT_PORT: ${{ inputs.REDSHIFT_PORT }}
+                # bigquery
+                BIGQUERY_PROJECT: ${{ inputs.BIGQUERY_PROJECT }}
+                BIGQUERY_KEYFILE_JSON: ${{ secrets.BIGQUERY_KEYFILE_JSON }}
+                BIGQUERY_SCHEMA: ${{ inputs.BIGQUERY_SCHEMA }}
+                # snowflake
+                SNOWFLAKE_USER: ${{ inputs.SNOWFLAKE_USER }}
+                SNOWFLAKE_ROLE: ${{ inputs.SNOWFLAKE_ROLE }}
+                SNOWFLAKE_DATABASE: ${{ inputs.SNOWFLAKE_DATABASE }}
+                SNOWFLAKE_WAREHOUSE: ${{ inputs.SNOWFLAKE_WAREHOUSE }}
+                SNOWFLAKE_SCHEMA: ${{ inputs.SNOWFLAKE_SCHEMA }}
+                SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+                DBT_ENV_SECRET_SNOWFLAKE_PASS: ${{ secrets.DBT_ENV_SECRET_SNOWFLAKE_PASS }}
+                # databricks
+                DATABRICKS_SCHEMA: ${{ inputs.DATABRICKS_SCHEMA }}
+                DATABRICKS_HOST: ${{ inputs.DATABRICKS_HOST }}
+                DATABRICKS_HTTP_PATH: ${{ inputs.DATABRICKS_HTTP_PATH }}
+                DBT_ENV_SECRET_DATABRICKS_TOKEN: ${{ secrets.DBT_ENV_SECRET_DATABRICKS_TOKEN }}
