@@ -1,6 +1,8 @@
 ## Understanding dbt-package-testing
 
-This is an example of how to test packages.
+This is an example of how to test packages. For more info on how to test packages, refer to:
+- [Integration tests](https://docs.getdbt.com/guides/building-packages?step=4) for new packages maintainers.
+- [Test package with Fusion](https://docs.getdbt.com/guides/fusion-package-compat?step=5#test-package-with-fusion) to test your package with Fusion to ensure compatibility.
 
 ## Reporting bugs and contributing code
 
