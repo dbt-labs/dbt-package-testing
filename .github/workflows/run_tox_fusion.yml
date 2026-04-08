@@ -109,7 +109,7 @@ jobs:
             - name: "Checkout ${{ github.event.repository }}"
               uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955  # actions/checkout@v4
               with:
-                  ref: ${{ inputs.ref || github.ref }}
+                  ref: ${{ github.ref }}
 
             - name: "Get list of supported adapters"
               id: list-adapters
@@ -130,15 +130,20 @@ jobs:
               id: supported-adapters
               run: |
                   # Convert to JSON array and output
-                  supported_adapters=$(echo "${{ steps.list-adapters.outputs.test_adapters }}" | jq -Rc 'split(",")')
+                  supported_adapters=$(echo "$TEST_ADAPTERS" | jq -Rc 'split(",")')
                   echo $supported_adapters
                   echo "adapters=$supported_adapters" >> $GITHUB_OUTPUT
+              env:
+                  TEST_ADAPTERS: ${{ steps.list-adapters.outputs.test_adapters }}
 
-            - name: "[ANNOTATION] ${{ github.event.repository.name }} - Fusion testing ${{ steps.supported-adapters.outputs.adapters }}"
+            - name: "[ANNOTATION] - Fusion testing adapters"
               run: |
-                  title="${{ github.event.repository.name }} - Fusion adapters to test"
-                  message="The workflow will run Fusion tests for the following adapters: ${{ steps.supported-adapters.outputs.adapters }}"
+                  title="$REPO_NAME - Fusion adapters to test"
+                  message="The workflow will run Fusion tests for the following adapters: $SUPPORTED_ADAPTERS"
                   echo "::notice $title::$message"
+              env:
+                  REPO_NAME: ${{ github.event.repository.name }}
+                  SUPPORTED_ADAPTERS: ${{ steps.supported-adapters.outputs.adapters }}
 
     run-tests:
         runs-on: ubuntu-latest
@@ -176,7 +181,9 @@ jobs:
 
             - name: "Run Fusion integration tests with tox on ${{ matrix.adapter }}"
               run: |
-                  tox -e dbt_integration_fusion_${{ matrix.adapter }}
+                  tox -e "dbt_integration_fusion_$ADAPTER"
+              env:
+                ADAPTER: ${{ matrix.adapter }}
               env:
                 # redshift
                 REDSHIFT_HOST: ${{ inputs.REDSHIFT_HOST }}
