@@ -184,7 +184,6 @@ jobs:
                   tox -e "dbt_integration_fusion_$ADAPTER"
               env:
                 ADAPTER: ${{ matrix.adapter }}
-              env:
                 # redshift
                 REDSHIFT_HOST: ${{ inputs.REDSHIFT_HOST }}
                 REDSHIFT_USER: ${{ inputs.REDSHIFT_USER }}
