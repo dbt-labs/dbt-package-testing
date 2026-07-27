@@ -19,7 +19,7 @@ There are many ways to contribute to the ongoing development of `dbt-package-tes
 
 The rest of this document serves as a more granular guide for contributing code changes to `dbt-package-testing` (this repository). It is not intended as a guide for using `dbt-package-testing`, and some pieces assume a level of familiarity with Python development (virtualenvs, `pip`, etc). Specific code snippets in this guide assume you are using macOS or Linux and are comfortable with the command line.
 
-If you get stuck, we're happy to help! Drop us a line in the `#dbt-package-testing-development` channel in the [dbt Community Slack](https://community.getdbt.com).
+If you get stuck, we're happy to help! Drop us a line in the `#package-ecosystem` channel in the [dbt Community Slack](https://community.getdbt.com).
 
 ### Notes
 
