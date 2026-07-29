@@ -34,6 +34,9 @@ jobs:
               && 'cloud-tests' || '' }}
         # For pull_request_target: checkout the PR head, not the base branch
         ref: ${{ github.event.pull_request.head.sha || '' }}
+        # Optional: defaults to "tox" (runs `tox -e dbt_integration_<adapter>` from your tox.ini).
+        # Set to "mise" to instead run `mise run test:<adapter>` from your own mise.toml.
+        # test_runner: "tox"
         # Note: only include the inputs below for the adapters you are testing against.
         # All inputs are optional and postgres has default values.
         # redshift
@@ -116,6 +119,9 @@ jobs:
               && github.event.pull_request.head.repo.full_name != github.repository
               && 'cloud-tests' || '' }}
         ref: ${{ github.event.pull_request.head.sha || '' }}
+        # Optional: defaults to "tox" (runs `tox -e dbt_integration_fusion_<adapter>` from your tox.ini).
+        # Set to "mise" to instead run `mise run test:fusion-<adapter>` from your own mise.toml.
+        # test_runner: "tox"
         # redshift
         REDSHIFT_HOST: ${{ vars.REDSHIFT_HOST }}
         REDSHIFT_USER: ${{ vars.REDSHIFT_USER }}

@@ -1,0 +1,22 @@
+# This mise.toml is for local development of dbt-package-testing itself (it
+# wraps this repo's own tox.ini). It is unrelated to the `test_runner: "mise"`
+# contract that run_tox.yml/run_tox_fusion.yml offer to *consumer* packages
+# (which expects task names like `test:<adapter>` — see README.md).
+
+[tools]
+python = "3.13"
+uv = "latest"
+
+[tasks.setup]
+description = "Sync dev dependencies (tox, tox-uv) with uv"
+run = "uv sync --group dev"
+
+[tasks.test]
+description = "Run the tox matrix for a single adapter (set ADAPTER, e.g. `ADAPTER=postgres mise run test`)"
+depends = ["setup"]
+run = "uv run tox -e dbt_integration_${ADAPTER}"
+
+[tasks."test:all"]
+description = "Run the full tox matrix for every supported adapter"
+depends = ["setup"]
+run = "uv run tox -p all"
