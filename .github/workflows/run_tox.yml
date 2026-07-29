@@ -373,7 +373,12 @@ jobs:
 
             - name: "Install ${{ matrix.adapter }}"
               run: |
-                  uv pip install --system "dbt-$ADAPTER" "dbt-core<2.0"
+                  # `uv pip install --system` requires an already-present, non-managed
+                  # system Python at that exact version, which GitHub-hosted runners
+                  # don't guarantee. `uv venv` auto-provisions the interpreter instead.
+                  uv venv --python "$PYTHON_VERSION" "$RUNNER_TEMP/dbt-venv"
+                  uv pip install --python "$RUNNER_TEMP/dbt-venv" "dbt-$ADAPTER" "dbt-core<2.0"
+                  echo "$RUNNER_TEMP/dbt-venv/bin" >> "$GITHUB_PATH"
               env:
                   ADAPTER: ${{ matrix.adapter }}
 
