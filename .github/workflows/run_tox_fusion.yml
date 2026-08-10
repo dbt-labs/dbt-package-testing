@@ -116,6 +116,15 @@ jobs:
               with:
                   ref: refs/heads/main
 
+            - name: "Validate test_runner input"
+              run: |
+                  if [ "$TEST_RUNNER" != "tox" ] && [ "$TEST_RUNNER" != "mise" ]; then
+                      echo "::error::Invalid test_runner '$TEST_RUNNER'. Must be 'tox' or 'mise'."
+                      exit 1
+                  fi
+              env:
+                  TEST_RUNNER: ${{ inputs.test_runner }}
+
             - name: "Get list of supported adapters"
               id: list-adapters
               run: |
@@ -190,7 +199,7 @@ jobs:
                       mise run "test:fusion-$ADAPTER"
                   else
                       echo "Running tests via tox (tox -e dbt_integration_fusion_$ADAPTER)"
-                      uvx --with tox-uv tox -e "dbt_integration_fusion_$ADAPTER"
+                      uvx --from "tox>=4,<5" --with "tox-uv>=1,<2" tox -e "dbt_integration_fusion_$ADAPTER"
                   fi
               env:
                 TEST_RUNNER: ${{ inputs.test_runner }}
