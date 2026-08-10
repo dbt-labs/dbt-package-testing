@@ -38,9 +38,13 @@ integration_tests:
       threads: 10
 ```
 
-### 2. `tox.ini`
+### 2. Test runner: `tox.ini` (default) or `mise.toml`
 
-Your package needs a `tox.ini` at the repo root. The workflows run `tox -e dbt_integration_<adapter>` (Core) or `tox -e dbt_integration_fusion_<adapter>` (Fusion engine), so the environment names must follow this convention.
+The workflows need a way to invoke your integration tests for each adapter. There are two supported options, controlled by the `test_runner` input (defaults to `tox`):
+
+#### Option A: `tox` (default)
+
+Your package needs a `tox.ini` at the repo root. The workflows run `tox -e dbt_integration_<adapter>` (Core) or `tox -e dbt_integration_fusion_<adapter>` (Fusion engine) — via `uvx --with tox-uv tox`, so you don't need `tox` installed or declared anywhere in your repo — so the environment names must follow this convention.
 
 The `[testenv]` section must include a `passenv` list with all the environment variables your adapters need. Tox isolates the environment by default, so without `passenv` the credentials set by the workflow won't reach dbt. See the [`tox.ini`](tox.ini) in this repo for a complete example.
 
@@ -94,6 +98,28 @@ commands =
     dbt build -x --target snowflake --full-refresh --static-analysis=off
 ```
 
+#### Option B: `mise`
+
+Pass `test_runner: "mise"` in your workflow call to use [`mise`](https://mise.jdx.dev/) tasks instead of tox. Your package needs a `mise.toml` at the repo root; the workflows run `mise run test:<adapter>` (Core) or `mise run test:fusion-<adapter>` (Fusion engine), so task names must follow this convention. Unlike tox, mise tasks inherit the calling shell's environment directly, so there's no `passenv`-equivalent to configure.
+
+```toml
+[tasks."test:snowflake"]
+dir = "integration_tests"
+run = [
+    "dbt deps --target snowflake",
+    "dbt build -x --target snowflake --full-refresh",
+]
+
+[tasks."test:fusion-snowflake"]
+dir = "integration_tests"
+run = [
+    "dbt deps --target snowflake",
+    "dbt build -x --target snowflake --full-refresh",
+]
+```
+
+The workflows only install `mise` itself when `test_runner: "mise"` is set — your `mise.toml` is responsible for anything else your tasks need (tool versions, setup steps, etc.).
+
 ### 3. Adapter list
 
 The workflows need to know which adapters to test. You can either:
@@ -124,6 +150,7 @@ Create a `.github/workflows/ci.yml` in your package repo that calls the reusable
 | `adapters` | Comma-separated adapter list (falls back to `supported_adapters.env`) |
 | `environment` | GitHub Environment name for fork PR protection (see below) |
 | `ref` | Git ref to checkout — required for `pull_request_target` callers |
+| `test_runner` | `tox` (default) or `mise` — see [Test runner](#2-test-runner-toxini-default-or-misetoml) above |
 
 All adapter-specific inputs (e.g. `SNOWFLAKE_USER`, `BIGQUERY_PROJECT`) and secrets (e.g. `SNOWFLAKE_ACCOUNT`, `DBT_ENV_SECRET_SNOWFLAKE_PASS`) are optional — only include the ones for adapters you're testing.
 

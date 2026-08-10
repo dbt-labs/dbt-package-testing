@@ -49,15 +49,33 @@ If you are a member of the `dbt-labs` GitHub organization, you will have push ac
 
 ## Setting up an environment
 
-This repo serves as a template and is no intedned to be run.
+This repo is mainly a template for other dbt packages' CI, but it has its own `tox.ini` and `integration_tests/` project used to validate the reusable workflows (`run_tox.yml`, `run_tox_fusion.yml`) against supported adapters.
 
 ### Initial setup
 
-None needed.
+Install [`mise`](https://mise.jdx.dev/), then run:
+
+```shell
+mise run setup
+```
+
+This installs Python and `uv` (versions pinned in `mise.toml`), then syncs the dev dependencies (`tox`, `tox-uv`) via `uv sync --group dev`.
 
 ### Test commands
 
-No tests included.
+Adapters other than Postgres need credentials — see the `passenv` list in `tox.ini` for the required environment variables.
+
+Run the test matrix for a single adapter:
+
+```shell
+ADAPTER=postgres mise run test
+```
+
+Or run the full matrix:
+
+```shell
+mise run test:all
+```
 
 ## Submitting a Pull Request
 
