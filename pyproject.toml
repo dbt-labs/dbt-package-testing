@@ -9,7 +9,7 @@ dependencies = []
 
 [dependency-groups]
 dev = [
-    "tox>=4,<5",
+    "tox>=4.60.0,<5",
     "tox-uv>=1,<2",
 ]
 
