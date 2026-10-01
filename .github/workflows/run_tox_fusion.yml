@@ -98,6 +98,10 @@ on:
                 required: false
             DBT_ENV_SECRET_SNOWFLAKE_PASS:
                 required: false
+            DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY:
+                required: false
+            DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE:
+                required: false
             # databricks
             DBT_ENV_SECRET_DATABRICKS_TOKEN:
                 required: false
@@ -223,6 +227,8 @@ jobs:
                 SNOWFLAKE_SCHEMA: ${{ inputs.SNOWFLAKE_SCHEMA }}
                 SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
                 DBT_ENV_SECRET_SNOWFLAKE_PASS: ${{ secrets.DBT_ENV_SECRET_SNOWFLAKE_PASS }}
+                DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY: ${{ secrets.DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY }}
+                DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE: ${{ secrets.DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE }}
                 # databricks
                 DATABRICKS_SCHEMA: ${{ inputs.DATABRICKS_SCHEMA }}
                 DATABRICKS_HOST: ${{ inputs.DATABRICKS_HOST }}
