@@ -20,7 +20,7 @@ Your repo needs an `integration_tests/` directory containing a dbt project with:
 - `dbt_project.yml`
 - `profiles.yml` — defines a target for each adapter, using `env_var()` to read credentials from the environment. You can copy [`integration_tests/profiles.yml`](integration_tests/profiles.yml) from this repo as a starting point — it includes targets for all supported adapters.
 
-For example, a Snowflake target in `profiles.yml`:
+For example, a Snowflake target in `profiles.yml` using password auth:
 
 ```yaml
 integration_tests:
@@ -37,6 +37,27 @@ integration_tests:
       schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
       threads: 10
 ```
+
+Or using key-pair auth, which the workflows support alongside password auth — use whichever your Snowflake user is configured for:
+
+```yaml
+integration_tests:
+  target: snowflake
+  outputs:
+    snowflake:
+      type: "snowflake"
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
+      user: "{{ env_var('SNOWFLAKE_USER') }}"
+      private_key: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY') }}"
+      private_key_passphrase: "{{ env_var('DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA') }}"
+      threads: 10
+```
+
+`DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY` is passed as PEM text (the full `-----BEGIN PRIVATE KEY-----...` block, not a file path). `DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE` is only needed if the key is encrypted.
 
 ### 2. Test runner: `tox.ini` (default) or `mise.toml`
 
@@ -56,6 +77,8 @@ passenv =
     SNOWFLAKE_ACCOUNT
     SNOWFLAKE_USER
     DBT_ENV_SECRET_SNOWFLAKE_PASS
+    DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY
+    DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE
     SNOWFLAKE_ROLE
     SNOWFLAKE_DATABASE
     SNOWFLAKE_WAREHOUSE
@@ -100,7 +123,7 @@ commands =
 
 #### Option B: `mise`
 
-Pass `test_runner: "mise"` in your workflow call to use [`mise`](https://mise.jdx.dev/) tasks instead of tox. Your package needs a `mise.toml` at the repo root; the workflows run `mise run test:<adapter>` (Core) or `mise run test:fusion-<adapter>` (Fusion engine), so task names must follow this convention. Unlike tox, mise tasks inherit the calling shell's environment directly, so there's no `passenv`-equivalent to configure.
+Pass `test_runner: "mise"` in your workflow call to use [`mise`](https://mise.jdx.dev/) tasks instead of tox. Your package needs a `mise.toml` at the repo root; the workflows run `mise run test:<adapter>` (Core) or `mise run test:fusion-<adapter>` (Fusion engine), so task names must follow this convention. Unlike tox, mise tasks inherit the calling shell's environment directly, so there's no `passenv`-equivalent to configure — this applies the same way to key-pair auth as it does to password auth, since both are just env vars set on the step.
 
 ```toml
 [tasks."test:snowflake"]
@@ -134,7 +157,7 @@ The workflows need to know which adapters to test. You can either:
 
 The workflows pass credentials to dbt via environment variables. You need to configure these in your GitHub repo settings under **Settings > Secrets and variables > Actions**:
 
-- **Secrets** — for sensitive values like passwords and tokens (e.g. `SNOWFLAKE_ACCOUNT`, `DBT_ENV_SECRET_SNOWFLAKE_PASS`, `BIGQUERY_KEYFILE_JSON`)
+- **Secrets** — for sensitive values like passwords, private keys, and tokens (e.g. `SNOWFLAKE_ACCOUNT`, `DBT_ENV_SECRET_SNOWFLAKE_PASS` or `DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY`/`DBT_ENV_SECRET_SNOWFLAKE_PRIVATE_KEY_PASSPHRASE`, `BIGQUERY_KEYFILE_JSON`)
 - **Variables** — for non-sensitive values like hostnames and roles (e.g. `SNOWFLAKE_USER`, `SNOWFLAKE_ROLE`, `SNOWFLAKE_DATABASE`)
 
 The names must match what your `profiles.yml` expects via `env_var()` and what you pass as inputs/secrets in the caller workflow. See the [`ci.yml`](.github/workflows/ci.yml) example for the full list of inputs and secrets each workflow accepts.
