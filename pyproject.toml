@@ -10,7 +10,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "tox>=4,<5",
-    "tox-uv>=1,<2",
+    "tox-uv>=1.37.0,<2",
 ]
 
 [tool.uv]
